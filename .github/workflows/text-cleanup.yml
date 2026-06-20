@@ -1,0 +1,77 @@
+name: Text cleanup pass
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/text-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean German text and clarify UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          repls = {
+            'Zahlenrad Oracle':'Zahlenrad-Orakel',
+            'ZAHLENRAD · ORACLE':'ZAHLENRAD · ORAKEL',
+            'WICCABARET JUGENDSTIL · ZAHL · RICHTUNG · GESTE':'ATOLISCHE GESTENZAHL · TIROLER RAD · RÖMISCHE ZEICHEN',
+            'Was ist eingeloggt?':'Aktivierte Zeichen',
+            'Zahlzauber · POARI-Manifold':'Zahlfeld · POARI-Manifold',
+            'Hier wird sichtbar, wie die eingegebenen Ziffern als Gesten und Richtungen im Feld schwingen.':'Die eingegebenen Ziffern werden sichtbar als Zeichen, Häuser und Routen im Feld.',
+            '100+ Regeln':'Regeln',
+            'Sprechtext für müde Nächte':'Sprechtext',
+            'Porösität':'Durchlässigkeit',
+            'Wirklichkeitsbiegen':'Realitätsdruck',
+            'Viele Nordzahlen: Die Person trägt Richtung; sie wird schneller zur Achse, als ihr selbst lieb ist.':'Viele Nordzahlen: Richtung, Überblick und Entscheidung treten stark hervor; andere orientieren sich schnell an dieser Person.',
+            'Kein Norden: Ziel, Namen, Entscheidung und öffentliches Auftreten müssen bewusst gewählt werden.':'Kein Norden: Ziel, Name, Entscheidung und öffentliches Auftreten entstehen nicht automatisch; sie müssen bewusst gesetzt werden.',
+            'Überladener Norden: aus Weitblick wird Befehl, aus Klarheit Kränkbarkeit.':'Überladener Norden: aus Weitblick kann Befehl werden; aus Klarheit kann Kränkbarkeit werden.',
+            'Viele Südzahlen: Wärme, Hunger, Kampfeslust; diese Signatur braucht echte Bewegung.':'Viele Südzahlen: Wärme, Mut, Begehren und Konfliktkraft sind aktiv; diese Signatur braucht echte Bewegung.',
+            'Kein Süden: Die rote Medizin ist Körper, Mut, Grenze im Bauch, nicht nur Denken.':'Kein Süden: Die rote Medizin ist Körper, Mut und ein klares Ja/Nein im Bauch, nicht nur Denken.',
+            'Überladener Süden: Die Flamme ist stark, aber die Brücke muss vor dem Feuer überquert werden.':'Überladener Süden: Die Flamme ist stark; sie muss geführt werden, bevor sie Beziehungen oder Chancen verbrennt.',
+            'Viele Ostzahlen: Das Herz hört Zwischentöne; Räume werden gelesen, bevor sie sprechen.':'Viele Ostzahlen: Zwischentöne, Stimmungen und Beziehungen werden früh wahrgenommen.',
+            'Kein Osten: Sanftes Vertrauen, Musikalität und Empfang müssen geübt werden.':'Kein Osten: Sanftes Vertrauen, Zuhören, Empfangen und Beziehungspflege müssen geübt werden.',
+            'Überladener Osten: fremdes Wetter wird leicht als eigenes Schicksal missverstanden.':'Überladener Osten: fremde Stimmungen können leicht als eigenes Schicksal missverstanden werden.',
+            'Viele Westzahlen: Messerblick, Handwerk, Zahlensinn; die Welt wird formbar.':'Viele Westzahlen: Präzision, Kritik, Handwerk und Zahlensinn sind stark; die Welt wird als formbar erlebt.',
+            'Kein Westen: Struktur, Ende, Rechnung und Werkzeug müssen bewusst eingeladen werden.':'Kein Westen: Struktur, Ende, Rechnung und Werkzeug müssen bewusst dazugenommen werden.',
+            'Überladener Westen: aus Form wird Härte, aus Prüfung wird Abwertung.':'Überladener Westen: aus Form kann Härte werden; aus Prüfung kann Abwertung werden.',
+            'Viele Mittezahlen: ruhige Gegenwart; man stabilisiert Felder fast ohne Worte.':'Viele Mittezahlen: Gegenwart, Ruhe und natürliche Wärme stabilisieren das Feld fast ohne Worte.',
+            'Keine Mitte: Ruhe, Spiel und grundlose Selbstwürdigkeit sind die Arznei.':'Keine Mitte: Ruhe, Spiel und grundlose Selbstwürdigkeit sind die Medizin.',
+            'Überladene Mitte: der Herd wärmt, aber er darf nicht alle Wege verschlucken.':'Überladene Mitte: Der Herd wärmt, darf aber nicht alle Wege verschlucken.',
+            'Kommandostab trifft Feuer':'Richtung trifft Feuer',
+            'Plan und Schnitt':'Plan trifft Schnitt',
+            'Süd und Ost zusammen: Blut singt. Intensiv, erotisch, künstlerisch, manchmal stürmisch.':'Süd und Ost zusammen: Feuer trifft Herz. Intensiv, künstlerisch, körperlich, manchmal stürmisch.',
+            'Süd und West zusammen: Schmiedefeuer. Ideal für Durchsetzung, Sport, Handwerk, Kampfkunst.':'Süd und West zusammen: Schmiedefeuer. Gut für Durchsetzung, Sport, Handwerk und Kampfkunst.',
+            'Ost und West zusammen: Musikerhand oder Chirurgenseele; Gefühl braucht Form, Form braucht Gefühl.':'Ost und West zusammen: Gefühl und Form treffen sich; Wahrnehmung braucht Werkzeug, Werkzeug braucht Wahrnehmung.',
+            'West und Mitte zusammen: Münzmeister am Herd. Praktische Meisterschaft, Geld, Werkstatt, stabile Ergebnisse.':'West und Mitte zusammen: Werkstatt am Herd. Praktische Meisterschaft, Geld, Küche, Reparatur, stabile Ergebnisse.',
+            'eingeloggte Zeichen':'aktivierte Zeichen',
+            'eingeloggt sind':'aktiviert sind',
+            'Was fehlt, ist':'Was schwach oder leer bleibt, ist',
+            'Fehlend heißt':'Leer heißt',
+            'Diese Geste wird Schicksalsakzent':'Diese Geste wird zum starken Akzent',
+            'Gabe und Schatten müssen beide verwaltet werden':'Gabe und Schatten müssen beide bewusst geführt werden',
+            'Kein Defekt, sondern Lernweg.':'Kein Defekt, sondern der bewusste Lernweg.',
+            'Atolische Gestenzahl: ein eigenes Zahlenrad-Orakel aus Zahl, Richtung, Farbe und römischer Geste. Inspiriert von öffentlich bekannten Tiroler Zahlenrad-Zuordnungen; kein offizielles Paungger/Poppe-Produkt.':'Atolische Gestenzahl: ein eigenes Orakel-Interface aus Zahl, Richtung, Farbe und römischer Geste. Inspiriert von öffentlich bekannten Tiroler Zahlenrad-Zuordnungen; keine offizielle Paungger/Poppe-Version.'
+          }
+          for a, b in repls.items():
+              text = text.replace(a, b)
+          if 'methodNote' not in text:
+              text = text.replace('<button id="cast">Lesung starten</button></div></div><div class="wheelWrap">', '<button id="cast">Lesung starten</button></div><div class="micro methodNote">Methode: Datum → Ziffern → römische Gesten → Häuser → Stärke, Leere und Ausgleich. Die Ausgabe ist eine symbolische Lesung, keine Tatsachenbehauptung.</div></div><div class="wheelWrap">')
+              text = text.replace('.micro{font-size:13px;line-height:1.35;color:#5e4a25;margin-top:10px}', '.micro{font-size:13px;line-height:1.35;color:#5e4a25;margin-top:10px}.methodNote{position:relative;z-index:1;text-align:center}')
+          p.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Clean text and clarify Zahlenrad UI"
+          git push
