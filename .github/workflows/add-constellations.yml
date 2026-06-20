@@ -1,0 +1,76 @@
+name: Add constellation analysis
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/add-constellations.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add higher-order constellation layer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+
+          if 'data-tab="constellations"' not in text:
+              text = text.replace('<button class="tab" data-tab="rules">Regeln</button><button class="tab" data-tab="script">Sprechtext</button>', '<button class="tab" data-tab="constellations">Konstellationen</button><button class="tab" data-tab="rules">Regeln</button><button class="tab" data-tab="script">Sprechtext</button>')
+              text = text.replace('<section id="rules" class="section">', '<section id="constellations" class="section"><div class="card"><div class="h2">Manifold-Konstellationen</div><div id="constellationSummary" class="reading"></div><div id="constellationList" class="ruleList"></div></div></section><section id="rules" class="section">')
+
+          if '.constellationScore' not in text:
+              text = text.replace('.rule b{color:#ffe39a}', '.rule b{color:#ffe39a}.constellationScore{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.scorePill{border:1px solid #8f6b29;background:#fff4cf;color:#231808;border-radius:14px;padding:8px;font-size:13px}.scorePill b{display:block;font-size:16px;color:#2b1b08}@media(max-width:420px){.constellationScore{grid-template-columns:1fr}}')
+
+          text = text.replace('renderOverview({...data,weak:entries.filter(e=>e[1]===min).map(e=>e[0])});renderHouses', 'renderOverview({...data,weak:entries.filter(e=>e[1]===min).map(e=>e[0])});renderConstellations(data);renderHouses')
+          text = text.replace('ruleList.innerHTML="<div class=\'rule\'><b>Bereit.</b><br>Die Regelmaschine aktiviert sich nach der Eingabe.</div>";scriptText', 'ruleList.innerHTML="<div class=\'rule\'><b>Bereit.</b><br>Die Regelmaschine aktiviert sich nach der Eingabe.</div>";constellationSummary.innerHTML="<p>Nach der Eingabe erscheinen hier Achsen, Dreiecke, Kronen, Leere Tore und die Signaturklasse.</p>";constellationList.innerHTML="";scriptText')
+
+          if 'function renderConstellations(' not in text:
+              marker = 'function renderRules(a){'
+              fn = r'''function renderConstellations(a){
+  let c=a.counts,total=Math.max(1,a.digits.length),active=ORDER.filter(h=>c[h]>0),missing=ORDER.filter(h=>c[h]===0),max=Math.max(...ORDER.map(h=>c[h])),min=Math.min(...ORDER.map(h=>c[h]));
+  let ns=c.north+c.south, ew=c.east+c.west, outer=ns+ew, center=c.center;
+  let concentration=Math.round(100*max/total), spread=active.length, balance=Math.max(0,100-Math.round(25*(max-min))), bottleneck=missing.length?missing.map(h=>HOUSES[h].name).join(', '):ORDER.filter(h=>c[h]===min).map(h=>HOUSES[h].name).join(', ');
+  let cls='Wanderer';
+  if(active.length===5) cls='Kreuzrad';
+  else if(max>=4) cls='Krone';
+  else if(c.west>=3) cls='Klinge';
+  else if(c.center>=3) cls='Herd';
+  else if(c.south>=2&&c.west>=2) cls='Schmiede';
+  else if(c.east>=2&&c.center>=1) cls='Garten';
+  else if(c.north>=2&&c.west>=1) cls='Turm';
+  else if(c.north&&c.south&&c.east&&c.west) cls='Kreuzung';
+  else if(active.length<=2) cls='Bündel';
+  let lines=[];
+  lines.push(['Signaturklasse', cls+': '+({Kreuzrad:'alle Hauptrichtungen sind aktiv; die Person lebt als bewegliche Mitte im Richtungsfeld.',Krone:'eine Kraft dominiert deutlich; Gabe und Schatten dieser Richtung prägen die Lesung.',Klinge:'West ist stark; Präzision, Schnitt, Maß und Fertigstellung dominieren.',Herd:'Mitte ist stark; Präsenz, Wärme und Selbstwert tragen das Feld.',Schmiede:'Süd und West verbinden Feuer mit Werkzeug: Durchsetzung, Training, Handwerk.',Garten:'Ost und Mitte verbinden Wahrnehmung mit Wärme: Pflege, Kunst, soziale Heilung.',Turm:'Nord und West verbinden Übersicht mit Struktur: Strategie, System, Urteil.',Kreuzung:'vier Richtungen sind aktiv; Entscheidungen entstehen aus Spannung zwischen Wegen.',Bündel:'wenige Häuser tragen viel Gewicht; die Lesung ist fokussiert, aber anfällig für blinde Flecken.',Wanderer:'mehrere Kräfte sind aktiv, aber ohne starre Krone; die Signatur bleibt beweglich.'}[cls])]);
+  lines.push(['Nord–Süd-Achse', ns?`Vertikale Achse ${ns}/${total}: Richtung und Feuer sind ${ns>=ew?'stärker als':'schwächer als'} Ost–West.`:'Diese Achse ist leer: Führung und Körperfeuer müssen bewusst gerufen werden.']);
+  lines.push(['Ost–West-Achse', ew?`Horizontale Achse ${ew}/${total}: Beziehung und Form sind ${ew>=ns?'stärker als':'schwächer als'} Nord–Süd.`:'Diese Achse ist leer: Gefühl und Werkzeug brauchen bewusste Pflege.']);
+  lines.push(['Mitte–Außen', center?`Mitte ${center}/${total}: das Zentrum stabilisiert ${outer} äußere Zeichen.`:'Keine Mitte: Das Feld hat Routen, aber wenig ruhenden Herd.']);
+  if(c.north&&c.south) lines.push(['Spannungsbogen', 'Nord und Süd aktiv: Kopf und Feuer müssen verbunden werden, sonst kämpfen Befehl und Impuls.']);
+  if(c.east&&c.west) lines.push(['Formbogen', 'Ost und West aktiv: Wahrnehmung trifft Werkzeug; Gefühl braucht Form, Form braucht Gefühl.']);
+  if(c.center&&max===c.center) lines.push(['Zentralkrone','Die Mitte ist Krone: Präsenz wirkt stärker als Strategie. Gut für Gastgeben, Stabilisieren, Beruhigen.']);
+  if(missing.length) lines.push(['Leere Tore', 'Nicht besetzt: '+missing.map(h=>HOUSES[h].name+'-'+HOUSES[h].color).join(', ')+'. Das sind keine Defekte, sondern bewusste Ausgleichsrouten.']);
+  let triads=[];[['north','east','center','Himmelsgarten'],['north','west','center','Münzturm'],['south','west','center','Schmiedeherd'],['south','east','center','Feuergarten'],['north','south','west','Kampfmaß'],['east','west','center','Werkstatt-Herz']].forEach(t=>{if(c[t[0]]&&c[t[1]]&&c[t[2]])triads.push(t[3])});
+  if(triads.length) lines.push(['Dreiecke', triads.join(', ')+': dreiteilige Schaltungen, die mehr sind als einzelne Häuser.']);
+  constellationSummary.innerHTML=`<div class="constellationScore"><div class="scorePill"><b>${cls}</b>Signaturklasse</div><div class="scorePill"><b>${concentration}%</b>Konzentration</div><div class="scorePill"><b>${balance}%</b>Balance</div><div class="scorePill"><b>${bottleneck}</b>Bottleneck</div></div><p>Die Konstellation liest nicht einzelne Zahlen, sondern das Verhältnis der Häuser: Achsen, Leere, Kronen, Dreiecke und Spannungsbögen.</p>`;
+  constellationList.innerHTML='';
+  lines.forEach((r,i)=>{let div=document.createElement('div');div.className='rule';div.innerHTML=`<b>${i+1}. ${r[0]}</b><br>${r[1]}`;constellationList.appendChild(div)});
+}
+'''
+              text = text.replace(marker, fn + marker)
+
+          p.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit constellation patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Add higher-order constellation analysis"
+          git push
